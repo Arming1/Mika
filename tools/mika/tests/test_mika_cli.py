@@ -162,6 +162,17 @@ else:
             self.assertEqual("t1", body["task_id"])
             self.assertEqual([("GET", "/api/v1", None), ("POST", "/api/v1/tasks", {"goal": text})], server.calls)
 
+    def test_unicode_is_utf8_even_when_the_console_code_page_is_not(self):
+        # Windows pipes default to the locale code page; the CLI must not depend on it.
+        text = "查询电量 👋"
+        reply = (201, {**SNAPSHOT, "goal": text}, {})
+        with api(lambda method, path, body: reply if method == "POST" else None) as server:
+            result, body = self.invoke("task", "run", "--goal-file", "-", server=server, stdin=text,
+                                       env={"PYTHONUTF8": "0", "PYTHONIOENCODING": "latin-1"})
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(text, body["goal"])
+            self.assertEqual({"goal": text}, server.calls[-1][2])
+
     def test_direct_http_does_not_require_adb(self):
         with api() as server:
             result, body = self.invoke("connect", "--adb", "missing-adb-executable", server=server)

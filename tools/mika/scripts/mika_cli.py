@@ -435,6 +435,10 @@ def parser():
 
 
 def main(argv=None):
+    # Pipes default to the locale code page on Windows; agents read stdout as UTF-8 and stdin is documented as UTF-8.
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     argv = list(sys.argv[1:] if argv is None else argv)
     secrets, code = [], 0
     compact = "--json" in argv
