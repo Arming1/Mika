@@ -74,8 +74,11 @@ const STRINGS = {
   errDeviceSelection: ["请连接手机，或从已在线的设备中选择一台。", "Connect a phone, or choose one of the online phones."],
   errDevicePinned: ["本次任务台已选定手机，即将重新读取。", "This desk already uses another phone; reading it again."],
   errAdb: ["无法读取指定手机。请检查 ADB 连接，并确认已对这台手机运行 mika connect。", "Cannot read the selected phone. Check the ADB connection and run mika connect for this phone."],
-  errAdbUnavailable: ["找不到 adb，请先安装 Android platform-tools。", "adb was not found. Install Android platform-tools first."],
+  errAdbUnavailable: ["找不到可运行的 adb，请先安装 Android platform-tools，或检查 --adb 指定的路径。", "adb was not found or cannot be run. Install Android platform-tools or check the --adb path."],
+  errConnectionInfo: ["无法读取 Mika 的连接信息。请解锁手机，打开一次 Mika，然后重新连接。", "Mika's connection information could not be read. Unlock the phone, open Mika once, then retry connect."],
   errDeviceOffline: ["这台手机已离线，重新连接后会自动更新。", "The phone is offline. The desk updates once it reconnects."],
+  errDeviceUnauthorized: ["手机尚未授权这台电脑。请解锁手机，接受 USB 调试授权提示，任务台会自动重试。", "The phone has not authorized this computer. Unlock the phone and accept the USB debugging prompt; the desk retries by itself."],
+  errDeviceReconnect: ["这台手机处于离线状态。请重新插拔数据线，或在手机上重新开启 USB 调试；任务台会自动重试。", "The phone is offline. Reconnect the cable or re-enable USB debugging on the phone; the desk retries by itself."],
   errStale: ["手机已重启。请重新对这台手机运行 mika connect，任务台会自动重连。", "The phone restarted. Run mika connect for it again; the desk reconnects by itself."],
   errConnection: ["未能读取手机回复，任务台会自动重试连接。", "No reply from the phone. The desk keeps retrying."],
   errDeskOffline: ["无法读取本机任务台，请检查本机服务是否在运行。", "Cannot reach the local desk. Check that mika ui is still running."],
@@ -305,8 +308,11 @@ async function call(action, fields = {}) {
 const errors = {
   session: "errSession", device_selection: "errDeviceSelection", device_pinned: "errDevicePinned", adb: "errAdb",
   adb_unavailable: "errAdbUnavailable", device_offline: "errDeviceOffline", stale_connection: "errStale",
-  connection: "errConnection", desk_offline: "errDeskOffline", outcome_unknown: "errOutcomeUnknown",
+  connection_info: "errConnectionInfo", connection: "errConnection", desk_offline: "errDeskOffline",
+  outcome_unknown: "errOutcomeUnknown",
 };
+// device_offline carries the phone's ADB state; any other state keeps the generic text.
+const deviceStates = new Map([["unauthorized", "errDeviceUnauthorized"], ["offline", "errDeviceReconnect"]]);
 
 function connectionSummary(phase, text) {
   const details = $("connection-details");
@@ -381,7 +387,8 @@ function showProblem(e) {
   else if (e.code === "device_offline" || e.code === "device_selection") summary = t("waitPhone");
   connectionSummary(picking ? "choose" : "retry", summary);
   $("device").textContent = t("toReread");
-  const detail = errors[e.code] ? t(errors[e.code]) : e.message || t("errFallback");
+  const key = (e.code === "device_offline" && deviceStates.get(e.state)) || errors[e.code];
+  const detail = key ? t(key) : e.message || t("errFallback");
   if (e.code === "outcome_unknown") writeWarning = detail;
   message("error", [writeWarning !== detail && writeWarning, detail, overview && t("keptList")].filter(Boolean).join(" "));
 }
